@@ -43,6 +43,7 @@ app:
     secret: ${JWT_SECRET:change-me-in-production-this-is-a-dev-only-secret-key}
     expiration: 2h
   cors:
+    # Overridden per profile below. Prod should list exact origins.
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200}
 
 springdoc:
@@ -55,13 +56,28 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:h2:mem:bank;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    # On disk, not in memory: an enrolled face and an uploaded photo have to
+    # survive a restart of the API, or testing the flows means redoing them every
+    # time. Delete ./data to get a clean seeded database back.
+    url: jdbc:h2:file:./data/bank;MODE=PostgreSQL
     username: sa
     password:
     driver-class-name: org.h2.Driver
   h2:
     console:
       enabled: true
+
+app:
+  cors:
+    # Any localhost port, plus the private ranges, so the app can be opened from
+    # a phone on the same Wi-Fi without pinning today's IP address. Dev only —
+    # the prod profile takes an explicit list from CORS_ORIGINS.
+    allowed-origins: >-
+      http://localhost:*,https://localhost:*,
+      http://127.0.0.1:*,https://127.0.0.1:*,
+      http://192.168.*.*:*,https://192.168.*.*:*,
+      http://10.*.*.*:*,https://10.*.*.*:*,
+      http://172.16.*.*:*,https://172.16.*.*:*
 
 ---
 spring:

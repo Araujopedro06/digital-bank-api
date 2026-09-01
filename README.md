@@ -38,7 +38,10 @@ Requires JDK 21.
 mvn spring-boot:run
 ```
 
-The dev profile starts on an in-memory H2 database and seeds two accounts:
+The dev profile keeps its H2 database in `./data`, so an enrolled face and an
+uploaded photo survive a restart. Delete that folder for a clean seeded database.
+
+It seeds two accounts:
 
 | E-mail          | Password   | Opening balance |
 | --------------- | ---------- | --------------- |
@@ -179,10 +182,21 @@ Biometric data is sensitive personal data (Lei 13.709/2018, art. 5, II), so:
 | Variable            | Default                | Meaning                       |
 | ------------------- | ---------------------- | ----------------------------- |
 | `JWT_SECRET`        | dev-only placeholder   | HMAC key, min. 32 bytes       |
-| `app.face.match-threshold` | `0.5`           | Max distance counted as a match |
-| `CORS_ORIGINS`      | `http://localhost:4200`| Allowed front-end origins     |
+| `app.face.match-threshold` | `0.45`          | Max distance counted as a match |
+| `CORS_ORIGINS`      | see below              | Allowed front-end origins     |
 | `DATABASE_URL`      | —                      | JDBC URL (prod profile)       |
 | `DATABASE_USER`     | —                      | DB user (prod profile)        |
 | `DATABASE_PASSWORD` | —                      | DB password (prod profile)    |
 
 Run the prod profile with `-Dspring-boot.run.profiles=prod`.
+
+CORS uses **origin patterns**, not a fixed list. The dev profile allows any
+localhost port plus the private ranges (`192.168.*`, `10.*`, `172.16.*`), so the
+app can be opened from a phone on the same Wi-Fi without pinning whichever IP the
+machine has today. Prod takes an explicit list from `CORS_ORIGINS`.
+
+This matters more than it looks: a browser attaches an `Origin` header to every
+request, and Spring answers a non-matching one with a bare `403 Invalid CORS
+request` before the controller ever runs. `curl` sends no `Origin`, so an API
+checked only by hand can look perfectly healthy while every browser is refused.
+`CorsTest` covers it.

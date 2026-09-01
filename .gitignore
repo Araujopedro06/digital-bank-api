@@ -15,6 +15,9 @@ bin/
 .DS_Store
 Thumbs.db
 
+### Local dev database (H2 file) ###
+data/
+
 ### Local config ###
 *.local
 application-local.yml

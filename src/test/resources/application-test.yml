@@ -12,4 +12,9 @@ app:
     secret: test-only-secret-key-that-is-long-enough-for-hs256
     expiration: 1h
   cors:
-    allowed-origins: http://localhost:4200
+    allowed-origins: >-
+      http://localhost:*,https://localhost:*,
+      http://127.0.0.1:*,https://127.0.0.1:*,
+      http://192.168.*.*:*,https://192.168.*.*:*,
+      http://10.*.*.*:*,https://10.*.*.*:*,
+      http://172.16.*.*:*,https://172.16.*.*:*
