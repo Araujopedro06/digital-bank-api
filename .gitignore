@@ -1,0 +1,21 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+### IDE ###
+.idea/
+*.iml
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Local config ###
+*.local
+application-local.yml
+.env

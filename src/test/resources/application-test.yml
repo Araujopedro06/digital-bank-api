@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:bank-test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+app:
+  jwt:
+    secret: test-only-secret-key-that-is-long-enough-for-hs256
+    expiration: 1h
+  cors:
+    allowed-origins: http://localhost:4200
