@@ -25,9 +25,19 @@ spring.servlet.multipart:
 app:
   face:
     # Euclidean distance between face-api.js descriptors below which two faces are
-    # taken to be the same person. The library's general-purpose default is 0.6;
-    # this is tightened for a banking flow, trading retries for fewer false accepts.
-    match-threshold: 0.5
+    # taken to be the same person.
+    #
+    # Calibrated against 21 real faces — 210 different-person pairs — by
+    # tools/face-threshold-eval in the web repo. False accepts over those pairs:
+    #
+    #   0.45 -> 0      0.50 -> 1      0.55 -> 4      0.60 -> 15
+    #
+    # 0.60 is face-api.js's general-purpose default and lets a stranger through
+    # 7% of the time, which is fine for photo tagging and not for a bank. The
+    # closest different-person pair measured 0.471, so 0.45 keeps a margin.
+    # Raise it if legitimate users get rejected too often: a retry costs seconds,
+    # a false accept costs someone their balance.
+    match-threshold: 0.45
   jwt:
     # Override in every real environment. Must be at least 32 bytes for HS256.
     secret: ${JWT_SECRET:change-me-in-production-this-is-a-dev-only-secret-key}

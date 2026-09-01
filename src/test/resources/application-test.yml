@@ -7,7 +7,7 @@ spring:
 
 app:
   face:
-    match-threshold: 0.5
+    match-threshold: 0.45
   jwt:
     secret: test-only-secret-key-that-is-long-enough-for-hs256
     expiration: 1h

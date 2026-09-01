@@ -90,8 +90,31 @@ at login, and every transfer has to be confirmed with it.
 128-number descriptor and only that is sent. **The comparison, however, is done
 here** — a client that decides its own match result is not a check at all. Two
 descriptors count as the same person when the Euclidean distance between them is
-under `app.face.match-threshold` (0.5; face-api.js's general default is 0.6,
-tightened here to trade retries for fewer false accepts).
+under `app.face.match-threshold`.
+
+### Choosing that threshold
+
+It was measured, not guessed. `tools/face-threshold-eval` in the web repo runs
+face-api over 21 real faces and reports the distance between different people
+(210 pairs — two faces in one photo are necessarily different people) against the
+same face recaptured under camera-like variation. False accepts over those pairs:
+
+| Threshold | Strangers accepted |
+| --------- | ------------------ |
+| 0.45      | 0 / 210            |
+| 0.50      | 1 / 210            |
+| 0.55      | 4 / 210            |
+| 0.60      | 15 / 210           |
+
+0.60 is face-api.js's documented general-purpose default and lets a stranger
+through 7% of the time — acceptable for tagging photos in a gallery, not for
+releasing money. The closest different-person pair measured 0.471, so the app
+ships **0.45**.
+
+Twenty-one faces is enough to rule a threshold out, nowhere near enough to claim
+an error rate. A real deployment calibrates on thousands of pairs and tracks
+accuracy per demographic group, since face recognition is well documented to
+perform unevenly across them.
 
 Both flows use single-use, two-minute tokens from `StepUpTokenService`:
 
@@ -109,11 +132,26 @@ all rejected, and the balance is left untouched.
 
 ### Limits, stated plainly
 
-This is a portfolio demo, not a production identity check. Descriptor matching
-proves *similarity to an enrolled face*, not *liveness* — a photograph or a video
-replay can defeat the browser-side challenge. Real deployments use a dedicated
-anti-spoofing vendor (AWS Face Liveness, iProov, Unico). Tokens live in memory,
-which suits one instance; more than one node would need Redis.
+This is a portfolio demo, not a production identity check.
+
+**It does tell people apart** — that is what the measurement above shows. What it
+does not do is prove that a live human is present. Descriptor matching answers
+"is this the enrolled face?", never "is this a real face, here, now?". Two
+consequences:
+
+1. A photograph or a video replay can defeat the browser-side liveness challenge.
+2. More fundamentally, the descriptor is computed in the browser, so nothing
+   forces an attacker to use the camera at all. Anyone holding a photo of the
+   user can compute a matching descriptor offline and POST it straight to
+   `/api/face/verify`. **The face here raises the cost of an attack; it is not a
+   second factor in the sense a hardware key or a TOTP code is.**
+
+Closing that gap means the server has to see the actual frames, which in practice
+means a certified vendor (iBeta PAD Level 2 / ISO-IEC 30107-3): AWS Rekognition
+Face Liveness, FaceTec, iProov, or in Brazil Unico, CAF or Serpro Datavalid.
+
+Tokens live in memory, which suits a single instance; more than one node needs
+Redis.
 
 ### LGPD
 
