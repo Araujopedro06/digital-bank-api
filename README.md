@@ -55,20 +55,75 @@ The dev profile starts on an in-memory H2 database and seeds two accounts:
 mvn test
 ```
 
-Covers the transfer rules (balance moves, both ledger lines are written,
-overdraft/self-transfer/unknown-account are rejected) and the auth flow
-(a login token unlocks the account endpoint; no token and a bad token are 401).
+26 tests covering the transfer rules (balance moves, both ledger lines are
+written, overdraft/self-transfer/unknown-account are rejected), the auth flow
+(a login token unlocks the account endpoint; no token and a bad token are 401),
+face matching (same face with capture drift matches, a different face does not,
+malformed descriptors are rejected) and the step-up tokens (single use, bound to
+one user and one purpose).
 
 ## Endpoints
 
-| Method | Path                 | Auth | Purpose                      |
-| ------ | -------------------- | ---- | ---------------------------- |
-| POST   | `/api/auth/register` | —    | Create user + open account   |
-| POST   | `/api/auth/login`    | —    | Exchange credentials for JWT |
-| GET    | `/api/accounts/me`   | JWT  | Account and balance          |
-| GET    | `/api/transactions`  | JWT  | Paged statement, newest first |
-| POST   | `/api/transfers`     | JWT  | Move money to another account |
-| POST   | `/api/deposits`      | JWT  | Add funds (demo funding rail) |
+| Method | Path                    | Auth | Purpose                               |
+| ------ | ----------------------- | ---- | ------------------------------------- |
+| POST   | `/api/auth/register`    | —    | Create user + open account            |
+| POST   | `/api/auth/login`       | —    | Password step; JWT, or a face challenge |
+| POST   | `/api/auth/login/face`  | —    | Trade challenge + face for a JWT      |
+| GET    | `/api/accounts/me`      | JWT  | Account and balance                   |
+| GET    | `/api/transactions`     | JWT  | Paged statement, newest first         |
+| POST   | `/api/transfers`        | JWT  | Move money to another account         |
+| POST   | `/api/deposits`         | JWT  | Add funds (demo funding rail)         |
+| GET    | `/api/profile/photo`    | JWT  | Profile photo bytes, 404 if none      |
+| POST   | `/api/profile/photo`    | JWT  | Upload JPEG/PNG, up to 2 MB           |
+| DELETE | `/api/profile/photo`    | JWT  | Remove the photo                      |
+| GET    | `/api/face/enrollment`  | JWT  | Whether a face is enrolled            |
+| PUT    | `/api/face/enrollment`  | JWT  | Store the descriptor, with consent    |
+| DELETE | `/api/face/enrollment`  | JWT  | Erase the biometric data              |
+| POST   | `/api/face/verify`      | JWT  | Match a face → single-use transfer token |
+
+## Facial verification
+
+A user who enrols a face gets two extra checks: the face becomes a second factor
+at login, and every transfer has to be confirmed with it.
+
+**The image never reaches the server.** The browser turns the face into a
+128-number descriptor and only that is sent. **The comparison, however, is done
+here** — a client that decides its own match result is not a check at all. Two
+descriptors count as the same person when the Euclidean distance between them is
+under `app.face.match-threshold` (0.5; face-api.js's general default is 0.6,
+tightened here to trade retries for fewer false accepts).
+
+Both flows use single-use, two-minute tokens from `StepUpTokenService`:
+
+```
+login    POST /api/auth/login      → { requiresFaceVerification: true, challengeToken }
+         POST /api/auth/login/face → { token: <JWT> }
+
+transfer POST /api/face/verify     → { verificationToken }
+         POST /api/transfers       → the token is spent here
+```
+
+The tests cover the ways around it: a missing token, a replayed token, a token
+issued for another user, and a LOGIN token offered as a TRANSFER confirmation are
+all rejected, and the balance is left untouched.
+
+### Limits, stated plainly
+
+This is a portfolio demo, not a production identity check. Descriptor matching
+proves *similarity to an enrolled face*, not *liveness* — a photograph or a video
+replay can defeat the browser-side challenge. Real deployments use a dedicated
+anti-spoofing vendor (AWS Face Liveness, iProov, Unico). Tokens live in memory,
+which suits one instance; more than one node would need Redis.
+
+### LGPD
+
+Biometric data is sensitive personal data (Lei 13.709/2018, art. 5, II), so:
+
+- enrolment requires explicit consent (`consent: true`, validated with `@AssertTrue`)
+  and the moment it was given is stored alongside the descriptor;
+- only the descriptor is kept — never the captured image;
+- `DELETE /api/face/enrollment` erases it on request (art. 18), and the account
+  falls back to password-only.
 
 ## Notes on the design
 
@@ -86,6 +141,7 @@ overdraft/self-transfer/unknown-account are rejected) and the auth flow
 | Variable            | Default                | Meaning                       |
 | ------------------- | ---------------------- | ----------------------------- |
 | `JWT_SECRET`        | dev-only placeholder   | HMAC key, min. 32 bytes       |
+| `app.face.match-threshold` | `0.5`           | Max distance counted as a match |
 | `CORS_ORIGINS`      | `http://localhost:4200`| Allowed front-end origins     |
 | `DATABASE_URL`      | —                      | JDBC URL (prod profile)       |
 | `DATABASE_USER`     | —                      | DB user (prod profile)        |

@@ -11,5 +11,7 @@ import java.math.BigDecimal;
 public record TransferRequest(
         @NotBlank @Size(min = 6, max = 12) String toAccountNumber,
         @NotNull @DecimalMin(value = "0.01") @Digits(integer = 17, fraction = 2) BigDecimal amount,
-        @Size(max = 120) String description) {
+        @Size(max = 120) String description,
+        /** Required only when the sender has a face enrolled; obtained from POST /api/face/verify. */
+        String faceToken) {
 }

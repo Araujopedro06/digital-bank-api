@@ -50,7 +50,7 @@ class AccountServiceTest {
     @Test
     void transferMovesMoneyBetweenAccounts() {
         accountService.transfer("sender@test.com",
-                new TransferRequest(receiverNumber, new BigDecimal("30.00"), "Rent"));
+                new TransferRequest(receiverNumber, new BigDecimal("30.00"), "Rent", null));
 
         assertThat(accountRepository.findByNumber(senderNumber).orElseThrow().getBalance())
                 .isEqualByComparingTo("70.00");
@@ -61,7 +61,7 @@ class AccountServiceTest {
     @Test
     void transferWritesOneLedgerLineOnEachSide() {
         accountService.transfer("sender@test.com",
-                new TransferRequest(receiverNumber, new BigDecimal("30.00"), "Rent"));
+                new TransferRequest(receiverNumber, new BigDecimal("30.00"), "Rent", null));
 
         var senderStatement = accountService.statement("sender@test.com", PageRequest.of(0, 10));
         var receiverStatement = accountService.statement("receiver@test.com", PageRequest.of(0, 10));
@@ -77,7 +77,7 @@ class AccountServiceTest {
     @Test
     void transferAboveBalanceIsRejected() {
         assertThatThrownBy(() -> accountService.transfer("sender@test.com",
-                new TransferRequest(receiverNumber, new BigDecimal("100.01"), "Too much")))
+                new TransferRequest(receiverNumber, new BigDecimal("100.01"), "Too much", null)))
                 .isInstanceOf(InsufficientFundsException.class);
 
         assertThat(accountRepository.findByNumber(senderNumber).orElseThrow().getBalance())
@@ -87,14 +87,14 @@ class AccountServiceTest {
     @Test
     void transferToOwnAccountIsRejected() {
         assertThatThrownBy(() -> accountService.transfer("sender@test.com",
-                new TransferRequest(senderNumber, new BigDecimal("10.00"), "Self")))
+                new TransferRequest(senderNumber, new BigDecimal("10.00"), "Self", null)))
                 .isInstanceOf(SameAccountTransferException.class);
     }
 
     @Test
     void transferToUnknownAccountIsRejected() {
         assertThatThrownBy(() -> accountService.transfer("sender@test.com",
-                new TransferRequest("000000000", new BigDecimal("10.00"), "Ghost")))
+                new TransferRequest("000000000", new BigDecimal("10.00"), "Ghost", null)))
                 .isInstanceOf(AccountNotFoundException.class);
     }
 }

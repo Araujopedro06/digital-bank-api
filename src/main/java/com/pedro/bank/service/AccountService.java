@@ -5,6 +5,8 @@ import com.pedro.bank.domain.Transaction;
 import com.pedro.bank.domain.TransactionType;
 import com.pedro.bank.repository.AccountRepository;
 import com.pedro.bank.repository.TransactionRepository;
+import com.pedro.bank.security.InvalidStepUpTokenException;
+import com.pedro.bank.security.StepUpTokenService;
 import com.pedro.bank.web.dto.DepositRequest;
 import com.pedro.bank.web.dto.TransferRequest;
 import org.springframework.data.domain.Page;
@@ -17,11 +19,17 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
+    private final FaceRecognitionService faceRecognitionService;
+    private final StepUpTokenService stepUpTokenService;
 
     public AccountService(AccountRepository accountRepository,
-                          TransactionRepository transactionRepository) {
+                          TransactionRepository transactionRepository,
+                          FaceRecognitionService faceRecognitionService,
+                          StepUpTokenService stepUpTokenService) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
+        this.faceRecognitionService = faceRecognitionService;
+        this.stepUpTokenService = stepUpTokenService;
     }
 
     @Transactional(readOnly = true)
@@ -43,6 +51,8 @@ public class AccountService {
      */
     @Transactional
     public Transaction transfer(String fromEmail, TransferRequest request) {
+        requireFaceConfirmation(fromEmail, request.faceToken());
+
         Account from = findByOwnerEmail(fromEmail);
         Account to = accountRepository.findByNumber(request.toAccountNumber())
                 .orElseThrow(() -> new AccountNotFoundException("number " + request.toAccountNumber()));
@@ -74,6 +84,22 @@ public class AccountService {
         return transactionRepository.save(new Transaction(
                 account, TransactionType.DEPOSIT, request.amount(),
                 description(request.description(), "Deposit"), null));
+    }
+
+    /**
+     * A user who has enrolled a face must confirm it before money moves. The
+     * token is spent here, so it cannot be replayed on a second transfer.
+     */
+    private void requireFaceConfirmation(String email, String faceToken) {
+        if (!faceRecognitionService.isEnrolled(email)) {
+            return;
+        }
+
+        String verifiedEmail = stepUpTokenService.consume(
+                faceToken, StepUpTokenService.Purpose.TRANSFER);
+        if (!verifiedEmail.equals(email)) {
+            throw new InvalidStepUpTokenException();
+        }
     }
 
     private String description(String provided, String fallback) {

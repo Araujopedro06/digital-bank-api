@@ -2,7 +2,9 @@ package com.pedro.bank.web;
 
 import com.pedro.bank.service.AuthService;
 import com.pedro.bank.web.dto.AuthResponse;
+import com.pedro.bank.web.dto.FaceLoginRequest;
 import com.pedro.bank.web.dto.LoginRequest;
+import com.pedro.bank.web.dto.LoginResponse;
 import com.pedro.bank.web.dto.RegisterRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,8 +34,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Exchange credentials for a JWT")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+    @Operation(summary = "Check the password; returns a JWT, or a face challenge if one is enrolled")
+    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/login/face")
+    @Operation(summary = "Trade a face challenge token plus a matching face for a JWT")
+    public AuthResponse loginWithFace(@Valid @RequestBody FaceLoginRequest request) {
+        return authService.completeFaceLogin(request);
     }
 }

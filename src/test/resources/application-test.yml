@@ -6,6 +6,8 @@ spring:
     driver-class-name: org.h2.Driver
 
 app:
+  face:
+    match-threshold: 0.5
   jwt:
     secret: test-only-secret-key-that-is-long-enough-for-hs256
     expiration: 1h
