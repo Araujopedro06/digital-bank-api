@@ -4,8 +4,14 @@ REST backend for a digital bank: accounts, transfers and statements. Written in
 Java 21 with Spring Boot 3, JWT authentication and a PostgreSQL/H2 schema managed
 by Flyway.
 
+**Live: <https://digital-bank-api-701x.onrender.com>** —
+[Swagger UI](https://digital-bank-api-701x.onrender.com/swagger-ui.html). The
+free tier sleeps when idle, so the first request after a quiet spell can take
+~50 seconds.
+
 The Angular client that consumes this API lives in
-[digital-bank-web](https://github.com/Araujopedro06/digital-bank-web).
+[digital-bank-web](https://github.com/Araujopedro06/digital-bank-web), deployed
+at <https://tiny-druid-25e148.netlify.app>.
 
 ## Stack
 
