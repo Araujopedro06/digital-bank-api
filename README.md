@@ -15,6 +15,7 @@ The Angular client that consumes this API lives in
 | Framework      | Spring Boot 3.3 (Web, Data JPA, Security) |
 | Authentication | JWT (HS384, stateless)                  |
 | Database       | H2 in dev, PostgreSQL in prod           |
+| Container      | Multi-stage Dockerfile, non-root runtime |
 | Migrations     | Flyway                                  |
 | Docs           | springdoc-openapi (Swagger UI)          |
 
@@ -58,12 +59,20 @@ It seeds two accounts:
 mvn test
 ```
 
-26 tests covering the transfer rules (balance moves, both ledger lines are
+34 tests covering the transfer rules (balance moves, both ledger lines are
 written, overdraft/self-transfer/unknown-account are rejected), the auth flow
 (a login token unlocks the account endpoint; no token and a bad token are 401),
 face matching (same face with capture drift matches, a different face does not,
-malformed descriptors are rejected) and the step-up tokens (single use, bound to
-one user and one purpose).
+malformed descriptors are rejected), the step-up tokens (single use, bound to one
+user and one purpose), and CORS (every case sends an `Origin`, because that is
+the header curl omits and browsers always send).
+
+`PostgresSchemaTest` boots the whole application against a **real PostgreSQL**,
+started by the test itself — no Docker daemon required, locally or in CI. The
+other tests run on H2 in PostgreSQL mode, which is close but not identical: the
+profile photo column already behaved differently between the two once. Without
+this, the first time the migrations meet PostgreSQL would be during a
+deployment.
 
 ## Endpoints
 
@@ -176,6 +185,57 @@ Biometric data is sensitive personal data (Lei 13.709/2018, art. 5, II), so:
   account make one fail rather than silently overwrite the other.
 - **Error responses stay generic.** "Insufficient funds" does not echo back the
   balance or account number; the client decides the user-facing wording.
+
+## Deploying
+
+The image builds on the host, so Docker is not needed locally.
+
+### Render
+
+`render.yaml` is a Blueprint: **New > Blueprint**, point it at this repository,
+and it creates the Postgres instance and the web service wired together. Set
+`CORS_ORIGINS` to the deployed front end's exact origin once that is live;
+everything else is filled in, including a generated `JWT_SECRET`.
+
+Two free-tier facts worth knowing: a free web service sleeps after 15 minutes
+idle, so the first request after a quiet spell pays a cold start, and Render's
+free Postgres expires after a while and takes the data with it.
+
+### Anywhere else
+
+Any host that runs a container works. It needs:
+
+| Variable                | Purpose                                              |
+| ----------------------- | ---------------------------------------------------- |
+| `SPRING_PROFILES_ACTIVE`| `prod`                                               |
+| `DATABASE_URL`          | `postgres://…` or a `jdbc:postgresql://…` URL         |
+| `JWT_SECRET`            | 32+ bytes, generated per environment                  |
+| `CORS_ORIGINS`          | the front end's exact origin                          |
+| `DEMO_SEED`             | `true` to seed the two demo accounts                  |
+| `FACE_RETENTION_HOURS`  | `24` on a public demo, `0` to keep enrolments         |
+
+`DATABASE_URL` is accepted in either form. Managed hosts hand out a
+`postgres://user:pass@host/db` string, which JDBC cannot parse and which fails
+with an error pointing nowhere near the cause, so
+`DatabaseUrlEnvironmentPostProcessor` splits it before the datasource is built.
+
+### Running it locally against Postgres
+
+```bash
+docker compose up --build
+```
+
+Postgres plus the API on the prod profile. Add `--profile web` to include the
+front end, if that repository is cloned next to this one.
+
+### Biometric data on a public demo
+
+`FACE_RETENTION_HOURS` exists because a public demo collects real biometric data
+from strangers who are trying a feature out. LGPD treats that as sensitive
+personal data gathered for one purpose; keeping it past the visit serves nothing.
+The retention job deletes enrolments older than the window, on top of the consent
+that is already required and the delete that is already offered.
+
 
 ## Configuration
 

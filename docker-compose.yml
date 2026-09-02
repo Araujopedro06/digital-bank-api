@@ -1,0 +1,50 @@
+# Runs the API against the same database engine as production.
+#
+# The front end lives in its own repository. Clone it next to this one and it is
+# picked up automatically:
+#
+#   docker compose --profile web up --build
+#
+# Without that profile only Postgres and the API start.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: bank
+      POSTGRES_USER: bank
+      POSTGRES_PASSWORD: bank
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bank -d bank"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: postgres://bank:bank@db:5432/bank
+      JWT_SECRET: local-compose-secret-not-for-real-use-32-bytes-min
+      CORS_ORIGINS: "http://localhost:*,https://localhost:*"
+      DEMO_SEED: "true"
+    ports:
+      - "8080:8080"
+
+  web:
+    profiles: ["web"]
+    build: ../digital-bank-web
+    depends_on:
+      - api
+    ports:
+      - "4173:80"
+
+volumes:
+  db-data:

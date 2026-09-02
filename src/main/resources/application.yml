@@ -23,7 +23,15 @@ spring.servlet.multipart:
   max-request-size: 3MB
 
 app:
+  demo:
+    # Seeds two accounts so a visitor has something to log into. On in dev; the
+    # public demo turns it on too, a real deployment would not.
+    seed: ${DEMO_SEED:false}
   face:
+    # Hours to keep an enrolled face before deleting it, 0 to keep indefinitely.
+    # The public demo sets this: strangers enrol real biometric data there, and
+    # keeping it any longer than the visit needs would be indefensible.
+    retention-hours: ${FACE_RETENTION_HOURS:0}
     # Euclidean distance between face-api.js descriptors below which two faces are
     # taken to be the same person.
     #
@@ -45,6 +53,16 @@ app:
   cors:
     # Overridden per profile below. Prod should list exact origins.
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Health only. The rest of actuator is not something to expose publicly.
+        include: health
+  endpoint:
+    health:
+      show-details: never
 
 springdoc:
   swagger-ui:
@@ -68,6 +86,8 @@ spring:
       enabled: true
 
 app:
+  demo:
+    seed: true
   cors:
     # Any localhost port, plus the private ranges, so the app can be opened from
     # a phone on the same Wi-Fi without pinning today's IP address. Dev only —
@@ -85,7 +105,10 @@ spring:
     activate:
       on-profile: prod
   datasource:
-    url: ${DATABASE_URL}
-    username: ${DATABASE_USER}
-    password: ${DATABASE_PASSWORD}
+    # Left blank on purpose. DatabaseUrlEnvironmentPostProcessor fills these from
+    # DATABASE_URL when the host provides a postgres:// connection string; set
+    # them explicitly instead if you have the parts separately.
+    url: ${DATABASE_URL:}
+    username: ${DATABASE_USER:}
+    password: ${DATABASE_PASSWORD:}
     driver-class-name: org.postgresql.Driver

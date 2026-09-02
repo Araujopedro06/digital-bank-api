@@ -6,18 +6,20 @@ import com.pedro.bank.service.AuthService;
 import com.pedro.bank.web.dto.DepositRequest;
 import com.pedro.bank.web.dto.RegisterRequest;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 
 import java.math.BigDecimal;
 
 /**
- * Gives the dev profile two accounts to transfer between, so the UI has
- * something to show on first run.
+ * Gives a fresh database two accounts to transfer between, so the UI has
+ * something to show on first run and a visitor to the public demo has somewhere
+ * to log in. Driven by a setting rather than the profile, because the deployed
+ * demo runs the prod profile and still wants the accounts.
  */
 @Configuration
-@Profile("dev")
+@ConditionalOnProperty(name = "app.demo.seed", havingValue = "true")
 public class DemoDataSeeder {
 
     @Bean
