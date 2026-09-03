@@ -4,6 +4,9 @@ import com.pedro.bank.security.AppUserDetailsService;
 import com.pedro.bank.security.JwtAuthFilter;
 import com.pedro.bank.security.JwtProperties;
 import com.pedro.bank.security.JwtService;
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -30,6 +33,8 @@ import java.util.List;
 @EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
     private final JwtService jwtService;
     private final AppUserDetailsService userDetailsService;
     private final List<String> allowedOrigins;
@@ -39,6 +44,27 @@ public class SecurityConfig {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.allowedOrigins = allowedOrigins;
+    }
+
+    /**
+     * States the CORS policy in the startup log.
+     *
+     * <p>A misconfigured allow-list is close to invisible from the outside: the
+     * request is refused by the CORS filter with a bare 403 before any controller
+     * runs, and curl — which sends no Origin — reports the same endpoint as
+     * perfectly healthy. Printing the effective list turns "the deployed site
+     * cannot log in" into a question the deployment log answers directly.
+     */
+    @PostConstruct
+    void reportCorsPolicy() {
+        List<String> configured = allowedOrigins.stream().map(String::trim).filter(o -> !o.isEmpty()).toList();
+
+        if (configured.isEmpty()) {
+            log.error("CORS allow-list is EMPTY — every browser request will be refused with 403. "
+                    + "Set CORS_ORIGINS to the front end's exact origin, e.g. https://example.netlify.app");
+        } else {
+            log.info("CORS allow-list: {}", String.join(", ", configured));
+        }
     }
 
     @Bean
