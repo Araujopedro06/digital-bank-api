@@ -1,13 +1,24 @@
 package com.pedro.bank.web;
 
 import com.pedro.bank.domain.InsufficientFundsException;
+import com.pedro.bank.domain.LoanAlreadySettledException;
 import com.pedro.bank.security.InvalidStepUpTokenException;
 import com.pedro.bank.service.AccountNotFoundException;
+import com.pedro.bank.service.AllowanceTooSoonException;
+import com.pedro.bank.service.LoanAlreadyActiveException;
+import com.pedro.bank.service.LoanTermsNotOfferedException;
+import com.pedro.bank.service.NoActiveLoanException;
 import com.pedro.bank.service.EmailAlreadyUsedException;
 import com.pedro.bank.service.FaceNotEnrolledException;
 import com.pedro.bank.service.FaceVerificationFailedException;
+import com.pedro.bank.service.InvalidBrCodeException;
 import com.pedro.bank.service.InvalidFaceDescriptorException;
+import com.pedro.bank.service.InvalidPixKeyException;
 import com.pedro.bank.service.InvalidProfilePhotoException;
+import com.pedro.bank.service.PixChargeNotFoundException;
+import com.pedro.bank.service.PixKeyAlreadyRegisteredException;
+import com.pedro.bank.service.PixKeyLimitReachedException;
+import com.pedro.bank.service.PixKeyNotFoundException;
 import com.pedro.bank.service.SameAccountTransferException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +60,67 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccountNotFoundException.class)
     public ResponseEntity<ApiError> handleAccountNotFound(AccountNotFoundException e) {
         return build(HttpStatus.NOT_FOUND, "Account not found", null);
+    }
+
+    @ExceptionHandler(PixKeyNotFoundException.class)
+    public ResponseEntity<ApiError> handlePixKeyNotFound(PixKeyNotFoundException e) {
+        // The exception carries the key for the logs. Echoing it back would turn
+        // this endpoint into a way of confirming whose CPF or phone number is
+        // registered here.
+        return build(HttpStatus.NOT_FOUND, "Pix key not found", null);
+    }
+
+    @ExceptionHandler(PixChargeNotFoundException.class)
+    public ResponseEntity<ApiError> handlePixChargeNotFound(PixChargeNotFoundException e) {
+        // Expired and never-existed are the same answer on purpose: telling them
+        // apart only helps someone probing for live ids.
+        return build(HttpStatus.NOT_FOUND, "Payment link not found or expired", null);
+    }
+
+    @ExceptionHandler(InvalidPixKeyException.class)
+    public ResponseEntity<ApiError> handleInvalidPixKey(InvalidPixKeyException e) {
+        return build(HttpStatus.BAD_REQUEST, e.getMessage(), null);
+    }
+
+    @ExceptionHandler(PixKeyAlreadyRegisteredException.class)
+    public ResponseEntity<ApiError> handlePixKeyTaken(PixKeyAlreadyRegisteredException e) {
+        return build(HttpStatus.CONFLICT, e.getMessage(), null);
+    }
+
+    @ExceptionHandler(PixKeyLimitReachedException.class)
+    public ResponseEntity<ApiError> handlePixKeyLimit(PixKeyLimitReachedException e) {
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage(), null);
+    }
+
+    @ExceptionHandler(InvalidBrCodeException.class)
+    public ResponseEntity<ApiError> handleInvalidBrCode(InvalidBrCodeException e) {
+        return build(HttpStatus.BAD_REQUEST, e.getMessage(), null);
+    }
+
+    @ExceptionHandler(AllowanceTooSoonException.class)
+    public ResponseEntity<ApiError> handleAllowanceTooSoon(AllowanceTooSoonException e) {
+        // The client already knows when she is free again, from GET /api/allowance.
+        return build(HttpStatus.TOO_MANY_REQUESTS, "Allowance is on cooldown", null);
+    }
+
+    @ExceptionHandler(LoanTermsNotOfferedException.class)
+    public ResponseEntity<ApiError> handleLoanTerms(LoanTermsNotOfferedException e) {
+        return build(HttpStatus.BAD_REQUEST, e.getMessage(), null);
+    }
+
+    @ExceptionHandler(LoanAlreadyActiveException.class)
+    public ResponseEntity<ApiError> handleLoanActive(LoanAlreadyActiveException e) {
+        return build(HttpStatus.CONFLICT, e.getMessage(), null);
+    }
+
+    @ExceptionHandler(LoanAlreadySettledException.class)
+    public ResponseEntity<ApiError> handleLoanSettled(LoanAlreadySettledException e) {
+        return build(HttpStatus.CONFLICT, e.getMessage(), null);
+    }
+
+    @ExceptionHandler(NoActiveLoanException.class)
+    public ResponseEntity<ApiError> handleNoLoan(NoActiveLoanException e) {
+        return build(HttpStatus.NOT_FOUND, e.getMessage(), null);
     }
 
     @ExceptionHandler(EmailAlreadyUsedException.class)
